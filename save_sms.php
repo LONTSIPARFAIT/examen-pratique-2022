@@ -1,43 +1,58 @@
+<?php
 session_start();
-require_once 'db.php'; // Inclure votre fichier de connexion
+require_once 'db.php'; // Inclure votre fichier de connexion PDO
 
 $success = '';
 $error = '';
 
 // Récupérer la liste des personnes pour le menu déroulant
-$query_personnes = "SELECT id_personne, nom, prenom, numero_cni FROM personnes";
-$result_personnes = mysqli_query($conn, $query_personnes);
-if (!$result_personnes) {
-    die("Erreur lors de la récupération des personnes : " . mysqli_error($conn));
+try {
+    $stmt_personnes = $conn->prepare("SELECT id_personne, nom, prenom, numero_cni FROM personnes");
+    $stmt_personnes->execute();
+    $personnes = $stmt_personnes->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    die("Erreur lors de la récupération des personnes : " . $e->getMessage());
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $destinataire_id = mysqli_real_escape_string($conn, $_POST['destinataire']);
-    $message = mysqli_real_escape_string($conn, $_POST['message']);
+    $destinataire_id = $_POST['destinataire'];
+    $message = $_POST['message'];
 
-    // Récupérer le numéro de téléphone du destinataire (supposons que numero_cni contient le numéro)
-    $query_dest = "SELECT numero_cni FROM personnes WHERE id_personne = '$destinataire_id'";
-    $result_dest = mysqli_query($conn, $query_dest);
-    if ($result_dest && mysqli_num_rows($result_dest) > 0) {
-        $row = mysqli_fetch_assoc($result_dest);
-        $destinataire_num = $row['numero_cni']; // Numéro de téléphone
-    } else {
-        $error = "Destinataire introuvable.";
+    // Vérifier que le destinataire existe et récupérer son numéro
+    try {
+        $stmt_dest = $conn->prepare("SELECT numero_cni FROM personnes WHERE id_personne = :id");
+        $stmt_dest->execute(['id' => $destinataire_id]);
+        $destinataire = $stmt_dest->fetch(PDO::FETCH_ASSOC);
+
+        if ($destinataire) {
+            $destinataire_num = $destinataire['numero_cni']; // Numéro de téléphone
+        } else {
+            $error = "Destinataire introuvable.";
+        }
+    } catch (PDOException $e) {
+        $error = "Erreur lors de la vérification du destinataire : " . $e->getMessage();
     }
 
     if (empty($error)) {
         // Définir l'expéditeur (remplacez par votre valeur, ex: un numéro ou un identifiant)
-        $expediteur = "+1234567890"; // Exemple, modifiez selon vos besoins
+        $expediteur = "+1234567890"; // Modifiez selon vos besoins
         $date_emission = date('Y-m-d');
         $heure_emission = date('H:i:s');
 
         // Enregistrer le SMS dans la table sms
-        $query_sms = "INSERT INTO sms (expediteur, destinataire, message, date_emission, heure_emission) 
-                      VALUES ('$expediteur', '$destinataire_num', '$message', '$date_emission', '$heure_emission')";
-        if (mysqli_query($conn, $query_sms)) {
+        try {
+            $stmt_sms = $conn->prepare("INSERT INTO sms (expediteur, destinataire, message, date_emission, heure_emission) 
+                                        VALUES (:expediteur, :destinataire, :message, :date_emission, :heure_emission)");
+            $stmt_sms->execute([
+                'expediteur' => $expediteur,
+                'destinataire' => $destinataire_num,
+                'message' => $message,
+                'date_emission' => $date_emission,
+                'heure_emission' => $heure_emission
+            ]);
             $success = "SMS enregistré avec succès !";
-        } else {
-            $error = "Erreur lors de l'enregistrement : " . mysqli_error($conn);
+        } catch (PDOException $e) {
+            $error = "Erreur lors de l'enregistrement : " . $e->getMessage();
         }
     }
 }
@@ -49,8 +64,69 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enregistrer un SMS</title>
-    <link rel="stylesheet" href="./save_sms.css">
-
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 350px;
+        }
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #1877f2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #166fe5;
+        }
+        .success {
+            color: green;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .error {
+            color: red;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -66,11 +142,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <label for="destinataire">Destinataire</label>
                 <select id="destinataire" name="destinataire" required>
                     <option value="">Sélectionner une personne</option>
-                    <?php while ($row = mysqli_fetch_assoc($result_personnes)): ?>
-                        <option value="<?php echo $row['id_personne']; ?>">
-                            <?php echo $row['nom'] . ' ' . $row['prenom'] . ' (' . $row['numero_cni'] . ')'; ?>
+                    <?php foreach ($personnes as $personne): ?>
+                        <option value="<?php echo htmlspecialchars($personne['id_personne']); ?>">
+                            <?php echo htmlspecialchars($personne['nom'] . ' ' . $personne['prenom'] . ' (' . $personne['numero_cni'] . ')'); ?>
                         </option>
-                    <?php endwhile; ?>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div class="form-group">
@@ -83,7 +159,5 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </body>
 </html>
 <?php
-// Libérer le résultat et fermer la connexion
-mysqli_free_result($result_personnes);
-mysqli_close($conn);
+// Pas besoin de fermer la connexion PDO explicitement, elle sera fermée à la fin du script
 ?>
