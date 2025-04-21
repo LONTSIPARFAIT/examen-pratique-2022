@@ -73,7 +73,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['expediteur'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultation des SMS par Expéditeur</title>
-    <ll
+    <link rel="stylesheet" href="./view_sms_by_sender.css">
 </head>
 <body>
     <div class="container">
