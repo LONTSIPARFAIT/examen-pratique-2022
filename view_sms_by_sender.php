@@ -20,9 +20,9 @@ try {
 
 // Vérifier les expediteur non valides dans sms
 try {
-    $stmt_invalid = $conn->prepare("SELECT DISTINCT destinataire 
+    $stmt_invalid = $conn->prepare("SELECT DISTINCT expediteur 
                                     FROM sms 
-                                    WHERE destinataire NOT IN (SELECT numero_cni FROM personnes)");
+                                    WHERE expediteur NOT IN (SELECT numero_cni FROM personnes)");
     $stmt_invalid->execute();
     $invalid_expediteurs_list = $stmt_invalid->fetchAll(PDO::FETCH_COLUMN);
     if (!empty($invalid_expediteurs_list)) {
@@ -32,14 +32,14 @@ try {
     $error .= "Erreur lors de la vérification des expéditeurs non valides : " . $e->getMessage();
 }
 
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['destinataire'])) {
-    $destinataire_id = $_POST['destinataire'];
-    $selected_sender = $destinataire_id;
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['expediteur'])) {
+    $expediteur_id = $_POST['expediteur'];
+    $selected_sender = $expediteur_id;
 
     // Vérifier que l'expéditeur existe et récupérer son numero_cni
     try {
         $stmt_exp = $conn->prepare("SELECT numero_cni, nom, prenom FROM personnes WHERE id_personne = :id");
-        $stmt_exp->execute(['id' => $destinataire_id]);
+        $stmt_exp->execute(['id' => $expediteur_id]);
         $expediteur = $stmt_exp->fetch(PDO::FETCH_ASSOC);
 
         if ($expediteur) {
