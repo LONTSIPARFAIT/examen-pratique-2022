@@ -4,12 +4,13 @@ require_once 'db.php'; // Inclure votre fichier de connexion PDO
 
 $success = '';
 $error = '';
+$debug = '';
 $sms_list = [];
 $selected_sender = '';
 
-// Récupérer la liste des expéditeurs pour le menu déroulant
+// Récupérer la liste des personnes pour le menu déroulant
 try {
-    $stmt_personnes = $conn->prepare("SELECT id_personne, nom, prenom, numero_cni FROM personnes");
+    $stmt_personnes = $conn->prepare("SELECT id_personne, nom, prenom, numero_cni FROM personnes ORDER BY nom, prenom");
     $stmt_personnes->execute();
     $personnes = $stmt_personnes->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
@@ -20,7 +21,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['expediteur'])) {
     $expediteur_id = $_POST['expediteur'];
     $selected_sender = $expediteur_id;
 
-    // Vérifier que l'expéditeur existe et récupérer son numéro
+    // Vérifier que l'expéditeur existe et récupérer son numero_cni
     try {
         $stmt_exp = $conn->prepare("SELECT numero_cni FROM personnes WHERE id_personne = :id");
         $stmt_exp->execute(['id' => $expediteur_id]);
@@ -28,6 +29,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['expediteur'])) {
 
         if ($expediteur) {
             $expediteur_num = $expediteur['numero_cni'];
+            $debug = "Recherche des SMS pour l'expéditeur : " . htmlspecialchars($expediteur_num);
 
             // Récupérer tous les SMS envoyés par cet expéditeur
             $stmt_sms = $conn->prepare("SELECT destinataire, message, date_emission, heure_emission 
@@ -38,7 +40,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['expediteur'])) {
             $sms_list = $stmt_sms->fetchAll(PDO::FETCH_ASSOC);
 
             if (empty($sms_list)) {
-                $success = "Aucun SMS trouvé pour cet expéditeur.";
+                $success = "Aucun SMS trouvé pour cet expéditeur (numero_cni: " . htmlspecialchars($expediteur_num) . ").";
             }
         } else {
             $error = "Expéditeur introuvable.";
@@ -55,7 +57,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['expediteur'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultation des SMS par Expéditeur</title>
-    <link rel="stylesheet" href="./view_sms_by_sender.css">
+\begin{itemize}
 </head>
 <body>
     <div class="container">
@@ -65,6 +67,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['expediteur'])) {
         <?php endif; ?>
         <?php if ($error): ?>
             <p class="error"><?php echo htmlspecialchars($error); ?></p>
+        <?php endif; ?>
+        <?php if ($debug): ?>
+            <p class="debug"><?php echo htmlspecialchars($debug); ?></p>
         <?php endif; ?>
         <form method="POST" action="">
             <div class="form-group">
@@ -110,5 +115,5 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['expediteur'])) {
 </body>
 </html>
 <?php
-// Pas besoin de fermer la connexion PDO explicitement, elle sera fermée à la fin du script
+// Pas besoin de fermer la connexion PDO explicitement
 ?>
