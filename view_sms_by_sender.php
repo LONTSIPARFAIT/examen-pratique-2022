@@ -130,7 +130,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['expediteur'])) {
                 </tbody>
             </table>
         <?php elseif ($_SERVER["REQUEST_METHOD"] == "POST" && empty($sms_list) && empty($error)): ?>
-            <p class="no-data">Aucun  SMS trouvé pour cet expéditeur.</p>
+            <p class="no-data">Aucun SMS trouvé pour cet expéditeur.</p>
         <?php endif; ?>
     </div>
 </body>
