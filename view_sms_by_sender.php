@@ -136,5 +136,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['expediteur'])) {
 </body>
 </html>
 <?php
+// matricule:25GL1274
 // Pas besoin de fermer la connexion PDO explicitement
 ?>
